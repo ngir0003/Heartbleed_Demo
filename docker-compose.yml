@@ -1,0 +1,38 @@
+services:
+
+  server:
+    build: ./server
+    container_name: heartbleed-server
+    ports:
+      - "4000:80"
+      - "4001:443"
+    networks:
+      - heartbleed-net
+    restart: unless-stopped
+
+  hacker:
+    build: ./hacker
+    container_name: heartbleed-hacker
+    ports:
+      - "4002:5000"
+    environment:
+      TARGET_HOST: server
+      TARGET_PORT: "443"
+    networks:
+      - heartbleed-net
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  dashboard:
+    build: ./dashboard
+    container_name: heartbleed-dashboard
+    ports:
+      - "4003:5000"
+    networks:
+      - heartbleed-net
+    restart: unless-stopped
+
+networks:
+  heartbleed-net:
+    driver: bridge

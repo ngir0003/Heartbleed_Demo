@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SecureBank — Login</title>
+<style>
+  body {
+    font-family: Georgia, serif;
+    background: #fff;
+    color: #111;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background: #1a3a5c;
+    color: #fff;
+    padding: 14px 32px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .wrap {
+    max-width: 400px;
+    margin: 80px auto;
+    padding: 0 24px;
+  }
+  h2 {
+    font-size: 1.4rem;
+    margin-bottom: 28px;
+    color: #1a3a5c;
+    border-bottom: 2px solid #1a3a5c;
+    padding-bottom: 10px;
+  }
+  label {
+    display: block;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    color: #333;
+  }
+  input[type=text], input[type=password] {
+    width: 100%;
+    padding: 9px 12px;
+    margin-bottom: 18px;
+    border: 1px solid #999;
+    font-size: 1rem;
+    box-sizing: border-box;
+  }
+  button {
+    width: 100%;
+    padding: 11px;
+    background: #1a3a5c;
+    color: #fff;
+    border: none;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  button:hover { background: #163050; }
+  .error {
+    background: #fee;
+    border: 1px solid #c00;
+    color: #c00;
+    padding: 9px 12px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+  }
+  .hint {
+    margin-top: 28px;
+    font-size: 0.82rem;
+    color: #555;
+    border-top: 1px solid #ddd;
+    padding-top: 14px;
+  }
+</style>
+</head>
+<body>
+<header>SecureBank Online Banking</header>
+<div class="wrap">
+  <h2>Sign In to Your Account</h2>
+  <form method="POST" action="/login">
+    <label for="username">Username</label>
+    <input type="text" id="username" name="username" autocomplete="off">
+    <label for="password">Password</label>
+    <input type="password" id="password" name="password">
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <button type="submit">Log In</button>
+  </form>
+  <div class="hint">
+    Demo accounts: <strong>alice</strong> / password123 &nbsp;&nbsp; <strong>bob</strong> / securepass
+  </div>
+</div>
+</body>
+</html>

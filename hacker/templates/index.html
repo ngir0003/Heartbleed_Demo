@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Heartbleed — Attack Console</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1a1a; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: #1a1a1a;
+    padding: 0 32px;
+    height: 52px;
+    display: flex; align-items: center; gap: 0;
+    flex-shrink: 0;
+  }
+  .topbar .t-title {
+    font-size: 0.9rem; font-weight: 700; color: #fff;
+    letter-spacing: .5px; display: flex; align-items: center; gap: 10px;
+  }
+  .topbar .t-title .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #dc2626;
+    box-shadow: 0 0 6px #dc2626;
+  }
+  .topbar .t-sub { font-size: 0.78rem; color: #666; margin-left: 16px; }
+  .topbar a {
+    margin-left: auto; font-size: 0.8rem; color: #888;
+    text-decoration: none; display: flex; align-items: center; gap: 6px;
+    border: 1px solid #333; padding: 5px 12px; border-radius: 4px;
+  }
+  .topbar a:hover { color: #fff; border-color: #666; }
+
+  /* ── LAYOUT ── */
+  .layout { flex: 1; display: grid; grid-template-columns: 280px 1fr; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid #e2e4e8;
+    display: flex; flex-direction: column; overflow-y: auto;
+  }
+  .sidebar-head {
+    padding: 20px 20px 12px;
+    font-size: 0.65rem; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #bbb;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .step {
+    border-bottom: 1px solid #f5f5f5;
+    cursor: default;
+  }
+  .step-hd {
+    padding: 14px 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .step-circle {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    background: #f3f4f6; border: 2px solid #e5e7eb;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 800; color: #aaa;
+    transition: all .2s;
+  }
+  .step-label { font-size: 0.85rem; font-weight: 600; color: #777; }
+  .step-body {
+    padding: 0 20px 14px 60px;
+    font-size: 0.8rem; color: #888; line-height: 1.65; display: none;
+  }
+  .step-body a { color: #2563eb; }
+  code { background: #f3f4f6; color: #dc2626; padding: 1px 5px; border-radius: 3px; font-size: 0.78rem; font-family: monospace; }
+
+  .step.active .step-circle { background: #dc2626; border-color: #dc2626; color: #fff; }
+  .step.active .step-label  { color: #dc2626; font-weight: 700; }
+  .step.active .step-body   { display: block; color: #555; }
+  .step.done   .step-circle { background: #16a34a; border-color: #16a34a; color: #fff; }
+  .step.done   .step-label  { color: #16a34a; }
+  .step.done   .step-body   { display: block; color: #aaa; }
+
+  /* ── MAIN ── */
+  .main { display: flex; flex-direction: column; gap: 0; overflow: hidden; padding: 20px; gap: 16px; }
+
+  /* ── CARD ── */
+  .card { background: #fff; border: 1px solid #e2e4e8; border-radius: 8px; overflow: hidden; }
+  .card-head {
+    padding: 11px 18px;
+    background: #fafafa;
+    border-bottom: 1px solid #e2e4e8;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card-head .ch-title {
+    font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #888;
+  }
+  .pill {
+    padding: 2px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700;
+    background: #f3f4f6; color: #666; border: 1px solid #e5e7eb; display: none;
+  }
+  .pill.show { display: inline-block; }
+  .pill.red  { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .pill.green{ background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+  /* ── PACKET ── */
+  .packet-body { padding: 18px 20px; }
+  .bytes { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .byte {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; cursor: default;
+  }
+  .byte-val {
+    width: 40px; height: 40px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'SFMono-Regular', monospace; font-size: 0.85rem; font-weight: 800;
+    border: 1px solid transparent;
+  }
+  .byte-tag { font-size: 0.6rem; color: #aaa; text-align: center; max-width: 40px; line-height: 1.2; }
+
+  .rec-type .byte-val { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+  .tls-ver  .byte-val { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+  .rec-len  .byte-val { background: #faf5ff; color: #7e22ce; border-color: #e9d5ff; }
+  .hb-type  .byte-val { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+  .hb-len   .byte-val { background: #fef2f2; color: #dc2626; border-color: #fecaca; }
+  .payload  .byte-val { background: #fefce8; color: #a16207; border-color: #fde68a; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; }
+  .leg { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: #666; }
+  .leg-swatch { width: 10px; height: 10px; border-radius: 3px; }
+
+  /* ── RUN BAR ── */
+  .run-bar { display: flex; align-items: center; gap: 14px; padding: 14px 18px; }
+  .run-bar label { font-size: 0.8rem; font-weight: 700; color: #555; }
+  .run-bar input {
+    background: #f9fafb; border: 1px solid #d1d5db; border-radius: 6px;
+    padding: 8px 12px; font-size: 0.88rem; color: #1a1a1a; outline: none;
+    width: 160px;
+  }
+  .run-bar input:focus { border-color: #2563eb; background: #fff; }
+  #btn-run {
+    margin-left: auto; padding: 9px 28px;
+    background: #dc2626; color: #fff; border: none; border-radius: 6px;
+    font-size: 0.88rem; font-weight: 800; cursor: pointer; letter-spacing: .3px;
+    box-shadow: 0 1px 4px rgba(220,38,38,.3);
+  }
+  #btn-run:hover    { background: #b91c1c; }
+  #btn-run:disabled { background: #e5e7eb; color: #aaa; cursor: not-allowed; box-shadow: none; }
+
+  /* ── DUMP ── */
+  .dump-card { flex: 1; display: flex; flex-direction: column; min-height: 200px; }
+  #idle-msg {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px;
+    padding: 40px; color: #ccc; font-size: 0.88rem; text-align: center;
+  }
+  #idle-msg .idle-icon { font-size: 2rem; }
+  #spinner {
+    flex: 1; display: none; align-items: center; justify-content: center;
+    gap: 10px; padding: 40px; color: #888; font-size: 0.88rem;
+  }
+  #dump-out {
+    flex: 1; padding: 16px 18px;
+    font-family: 'SFMono-Regular', monospace; font-size: 0.75rem; line-height: 1.9;
+    color: #374151; white-space: pre; overflow-y: auto; display: none;
+    background: #fafafa; border-top: 1px solid #f0f0f0;
+  }
+
+  /* ── TOKEN BANNER ── */
+  #token-banner {
+    display: none; padding: 16px 18px;
+    border-top: 2px solid #dc2626; background: #fffbfb;
+  }
+  #token-banner h3 {
+    font-size: 0.68rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 2px; color: #dc2626; margin: 0 0 12px;
+  }
+  .token-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .token-val {
+    font-family: monospace; font-size: 0.82rem; color: #1a1a1a;
+    background: #f3f4f6; padding: 7px 12px; border-radius: 5px;
+    border: 1px solid #e5e7eb; flex: 1; word-break: break-all;
+  }
+  .btn-copy {
+    padding: 7px 16px; background: #1a1a1a; color: #fff;
+    border: none; border-radius: 5px; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  }
+  .btn-copy:hover { background: #333; }
+  .hijack-steps { margin-top: 14px; }
+  .hijack-title {
+    font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #888; margin-bottom: 12px;
+  }
+  .hijack-step {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid #f3f4f6;
+  }
+  .hijack-step:last-child { border-bottom: none; }
+  .hs-num {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    background: #1a1a1a; color: #fff;
+    font-size: 0.72rem; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 1px;
+  }
+  .hs-body { display: flex; flex-direction: column; gap: 4px; }
+  .hs-body strong { font-size: 0.85rem; color: #1a1a1a; }
+  .hs-body span   { font-size: 0.8rem; color: #666; line-height: 1.6; }
+  .hs-link {
+    font-size: 0.8rem; color: #2563eb; text-decoration: none;
+    font-weight: 600; display: inline-block; margin-top: 2px;
+  }
+  .hs-link:hover { text-decoration: underline; }
+  kbd {
+    background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px;
+    padding: 1px 6px; font-size: 0.78rem; font-family: monospace; color: #333;
+    box-shadow: 0 1px 0 #d1d5db;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="t-title">
+    <span class="dot"></span>
+    Attack Console
+  </div>
+  <span class="t-sub">Heartbleed &nbsp;/&nbsp; CVE-2014-0160</span>
+  <a href="http://localhost:4003" target="_blank">&#8592; Overview</a>
+</div>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-head">How it works</div>
+
+    <div class="step active" id="s1">
+      <div class="step-hd">
+        <div class="step-circle">1</div>
+        <div class="step-label">Victim logs in</div>
+      </div>
+      <div class="step-body">
+        Open <a href="https://localhost:4001" target="_blank">SecureBank (port 4001)</a>
+        and sign in as <code>alice</code> or <code>bob</code>.
+        Their session cookie is now stored in server heap memory.
+      </div>
+    </div>
+
+    <div class="step" id="s2">
+      <div class="step-hd">
+        <div class="step-circle">2</div>
+        <div class="step-label">Send malformed heartbeat</div>
+      </div>
+      <div class="step-body">
+        We send <strong>1 byte</strong> of real payload but claim
+        <code>0x4000</code> (16,384 bytes).
+        OpenSSL does not check the length.
+      </div>
+    </div>
+
+    <div class="step" id="s3">
+      <div class="step-hd">
+        <div class="step-circle">3</div>
+        <div class="step-label">Server leaks memory</div>
+      </div>
+      <div class="step-body">
+        OpenSSL copies our 1 byte then reads 16,383 extra bytes straight off the heap — whatever is adjacent.
+      </div>
+    </div>
+
+    <div class="step" id="s4">
+      <div class="step-hd">
+        <div class="step-circle">4</div>
+        <div class="step-label">Find session token</div>
+      </div>
+      <div class="step-body">
+        We scan the raw dump for <code>session=</code>.
+        The victim's cookie may appear in the leaked data.
+      </div>
+    </div>
+
+    <div class="step" id="s5">
+      <div class="step-hd">
+        <div class="step-circle">5</div>
+        <div class="step-label">Hijack session</div>
+      </div>
+      <div class="step-body">
+        Paste the cookie into your browser. Reload SecureBank —
+        you're logged in as the victim, no password needed.
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- Packet card -->
+    <div class="card">
+      <div class="card-head">
+        <span class="ch-title">Malformed Heartbeat Packet</span>
+        <span style="font-size:0.75rem;color:#aaa;margin-left:4px">— 9 bytes sent, 16,384 bytes claimed</span>
+      </div>
+      <div class="packet-body">
+        <div class="bytes" id="bytes"></div>
+        <div class="legend">
+          <div class="leg"><div class="leg-swatch" style="background:#c2410c"></div>Record type</div>
+          <div class="leg"><div class="leg-swatch" style="background:#1d4ed8"></div>TLS version</div>
+          <div class="leg"><div class="leg-swatch" style="background:#7e22ce"></div>Record length</div>
+          <div class="leg"><div class="leg-swatch" style="background:#15803d"></div>HB type</div>
+          <div class="leg"><div class="leg-swatch" style="background:#dc2626"></div>Claimed length (0x4000 — the lie)</div>
+          <div class="leg"><div class="leg-swatch" style="background:#a16207"></div>Payload (1 byte)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Run bar card -->
+    <div class="card">
+      <div class="run-bar">
+        <label>Host</label>
+        <input type="text" id="inp-host" value="{{ target_host }}">
+        <label>Port</label>
+        <input type="text" id="inp-port" value="{{ target_port }}" style="width:80px">
+        <button id="btn-run" onclick="runExploit()">&#9654;&nbsp; Launch Exploit</button>
+      </div>
+    </div>
+
+    <!-- Dump card -->
+    <div class="card dump-card">
+      <div class="card-head">
+        <span class="ch-title">Memory Dump</span>
+        <span class="pill" id="pill-bytes"></span>
+        <span class="pill red" id="pill-tokens"></span>
+      </div>
+      <div id="idle-msg">
+        <span class="idle-icon">🔍</span>
+        Press <strong>&nbsp;Launch Exploit&nbsp;</strong> to probe the server.
+      </div>
+      <div id="spinner" style="display:none;flex:1;align-items:center;justify-content:center;padding:40px;color:#888;font-size:.88rem;gap:10px">
+        ⏳ &nbsp;Sending malformed heartbeat&hellip;
+      </div>
+      <pre id="dump-out"></pre>
+      <div id="token-banner">
+        <h3>&#128275; Session Token Stolen</h3>
+        <div id="token-list"></div>
+
+        <div class="hijack-steps">
+          <div class="hijack-title">How to use this token to log in as the victim</div>
+
+          <div class="hijack-step">
+            <div class="hs-num">1</div>
+            <div class="hs-body">
+              <strong>Open SecureBank in a new tab (do not log in)</strong>
+              <a class="hs-link" href="https://localhost:4001" target="_blank">https://localhost:4001 ↗</a>
+            </div>
+          </div>
+
+          <div class="hijack-step">
+            <div class="hs-num">2</div>
+            <div class="hs-body">
+              <strong>Open DevTools</strong>
+              <span>Press <kbd>F12</kbd> (Windows / Linux) or <kbd>Cmd ⌘</kbd> + <kbd>Option</kbd> + <kbd>I</kbd> (Mac)</span>
+            </div>
+          </div>
+
+          <div class="hijack-step">
+            <div class="hs-num">3</div>
+            <div class="hs-body">
+              <strong>Go to Application → Cookies</strong>
+              <span>In the DevTools panel click <strong>Application</strong> (top tab bar) → expand <strong>Cookies</strong> in the left sidebar → click <code>https://localhost:4001</code></span>
+            </div>
+          </div>
+
+          <div class="hijack-step">
+            <div class="hs-num">4</div>
+            <div class="hs-body">
+              <strong>Add a new cookie named <code>session</code></strong>
+              <span>Double-click the empty row at the bottom of the cookie table. Set <strong>Name</strong> = <code>session</code> and <strong>Value</strong> = the token you copied above. The page will still show <code>/login</code> — that is expected, do not reload yet.</span>
+            </div>
+          </div>
+
+          <div class="hijack-step">
+            <div class="hs-num">5</div>
+            <div class="hs-body">
+              <strong>Remove <code>/login</code> from the URL then press Enter</strong>
+              <span>The browser will be showing <code>https://localhost:4001/login</code>. Click the address bar, delete <code>/login</code> so it reads <code>https://localhost:4001</code>, then press <kbd>Enter</kbd>. The server sees your cookie and takes you straight to the dashboard — no password needed.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PACKET  = [0x18,0x03,0x03,0x00,0x04,0x01,0x40,0x00,0x41];
+const CLASSES = ['rec-type','tls-ver','tls-ver','rec-len','rec-len','hb-type','hb-len','hb-len','payload'];
+const TAGS    = ['Type','Ver','Ver','Len','Len','HB','Claimed','Claimed','Data'];
+const TIPS    = [
+  'Record type: 0x18 = heartbeat',
+  'TLS version high: 0x03','TLS version low: 0x03 (TLS 1.2)',
+  'Record length high: 0x00','Record length low: 0x04',
+  'HB type: 0x01 = request',
+  'Claimed length high: 0x40','Claimed length low: 0x00 → 0x4000 = 16,384 (the lie)',
+  'Actual payload: 1 byte (0x41 = "A")'
+];
+
+const wrap = document.getElementById('bytes');
+PACKET.forEach((b,i) => {
+  const outer = document.createElement('div');
+  outer.className = 'byte ' + CLASSES[i];
+  outer.title = TIPS[i];
+  outer.innerHTML = `<div class="byte-val">${b.toString(16).padStart(2,'0').toUpperCase()}</div><div class="byte-tag">${TAGS[i]}</div>`;
+  wrap.appendChild(outer);
+});
+
+function step(n) {
+  document.querySelectorAll('.step').forEach((el,i) => {
+    el.classList.remove('active','done');
+    if (i+1 < n) el.classList.add('done');
+    if (i+1 === n) el.classList.add('active');
+  });
+}
+
+function runExploit() {
+  const host = document.getElementById('inp-host').value.trim();
+  const port = document.getElementById('inp-port').value.trim();
+  const btn  = document.getElementById('btn-run');
+  btn.disabled = true;
+  document.getElementById('idle-msg').style.display     = 'none';
+  document.getElementById('dump-out').style.display     = 'none';
+  document.getElementById('token-banner').style.display = 'none';
+  document.getElementById('spinner').style.display      = 'flex';
+  document.getElementById('pill-bytes').classList.remove('show');
+  document.getElementById('pill-tokens').classList.remove('show');
+  step(2); setTimeout(() => step(3), 600);
+
+  fetch('/exploit', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({host, port})
+  })
+  .then(r => r.json())
+  .then(d => {
+    document.getElementById('spinner').style.display = 'none';
+    btn.disabled = false;
+    const out = document.getElementById('dump-out');
+    out.style.display = 'block';
+    if (d.error && !d.vulnerable) { out.textContent = 'Error: ' + d.error; step(1); return; }
+    step(4);
+    out.innerHTML = esc(d.hex_dump);
+    const pb = document.getElementById('pill-bytes');
+    pb.textContent = (d.raw_length||0).toLocaleString() + ' bytes leaked';
+    pb.classList.add('show','green');
+    if (d.found_tokens && d.found_tokens.length > 0) {
+      step(6); // marks all 5 steps done (green)
+      const pt = document.getElementById('pill-tokens');
+      pt.textContent = d.found_tokens.length + ' token' + (d.found_tokens.length>1?'s':'') + ' found';
+      pt.classList.add('show');
+      const list = document.getElementById('token-list');
+      list.innerHTML = '';
+      d.found_tokens.forEach(tok => {
+        list.insertAdjacentHTML('beforeend',`<div class="token-row"><div class="token-val">${esc(tok)}</div><button class="btn-copy" onclick="copy('${esc(tok)}',this)">Copy</button></div>`);
+      });
+      document.getElementById('token-banner').style.display = 'block';
+    }
+  })
+  .catch(err => {
+    document.getElementById('spinner').style.display = 'none';
+    btn.disabled = false;
+    const out = document.getElementById('dump-out');
+    out.style.display = 'block';
+    out.textContent = 'Network error: ' + err;
+    step(1);
+  });
+}
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function copy(tok,btn) {
+  navigator.clipboard.writeText(tok).then(() => { btn.textContent='Copied!'; setTimeout(()=>btn.textContent='Copy',2000); });
+}
+</script>
+</body>
+</html>

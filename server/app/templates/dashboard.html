@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SecureBank — Account</title>
+<style>
+  body {
+    font-family: Georgia, serif;
+    background: #fff;
+    color: #111;
+    margin: 0;
+    padding: 0;
+  }
+  header {
+    background: #1a3a5c;
+    color: #fff;
+    padding: 14px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header span { font-size: 1.2rem; font-weight: bold; letter-spacing: 1px; }
+  header a { color: #adc8e8; font-size: 0.9rem; text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+  .wrap { max-width: 700px; margin: 48px auto; padding: 0 24px; }
+  h2 { font-size: 1.3rem; color: #1a3a5c; margin-bottom: 4px; }
+  .sub { font-size: 0.9rem; color: #555; margin-bottom: 32px; }
+  .account-info {
+    border: 1px solid #ccc;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    background: #f8f9fb;
+  }
+  .account-info table { border-collapse: collapse; width: 100%; }
+  .account-info td { padding: 6px 0; font-size: 0.95rem; }
+  .account-info td:first-child { color: #555; width: 160px; }
+  .account-info td:last-child { font-weight: bold; color: #111; }
+  h3 { font-size: 1.1rem; color: #1a3a5c; margin-bottom: 12px; }
+  table.txns { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  table.txns th {
+    text-align: left;
+    padding: 8px 10px;
+    background: #1a3a5c;
+    color: #fff;
+    font-weight: normal;
+  }
+  table.txns td { padding: 9px 10px; border-bottom: 1px solid #ddd; }
+  table.txns tr:last-child td { border-bottom: none; }
+  .credit { color: #196b2e; }
+  .debit  { color: #b00; }
+</style>
+</head>
+<body>
+<header>
+  <span>SecureBank Online Banking</span>
+  <a href="/logout">Log Out</a>
+</header>
+<div class="wrap">
+  <h2>Welcome, {{ username }}</h2>
+  <div class="sub">Account overview</div>
+
+  <div class="account-info">
+    <table>
+      <tr><td>Account Number</td><td>{{ account }}</td></tr>
+      <tr><td>Account Type</td><td>Checking</td></tr>
+      <tr><td>Available Balance</td><td>{{ balance }}</td></tr>
+    </table>
+  </div>
+
+  <h3>Recent Transactions</h3>
+  <table class="txns">
+    <tr><th>Date</th><th>Description</th><th>Amount</th><th>Status</th></tr>
+    <tr><td>2026-06-09</td><td>Online Transfer</td><td class="debit">-$200.00</td><td>Completed</td></tr>
+    <tr><td>2026-06-08</td><td>Direct Deposit</td><td class="credit">+$3,200.00</td><td>Completed</td></tr>
+    <tr><td>2026-06-07</td><td>Utility Bill</td><td class="debit">-$94.50</td><td>Completed</td></tr>
+    <tr><td>2026-06-05</td><td>ATM Withdrawal</td><td class="debit">-$100.00</td><td>Completed</td></tr>
+  </table>
+</div>
+</body>
+</html>

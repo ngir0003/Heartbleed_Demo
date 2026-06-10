@@ -1,0 +1,1034 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heartbleed (CVE-2014-0160) &mdash; Technical Deep Dive</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      color: #111827;
+      font-family: "Times New Roman", Times, Georgia, serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    a { color: #dc2626; text-decoration: underline; }
+    a:hover { color: #b91c1c; text-decoration: none; }
+
+    strong { color: #0a0c10; }
+
+    /* ============================================================
+       NAV
+    ============================================================ */
+    .nav-wrap {
+      width: 100%;
+      background: #ffffff;
+      border-bottom: 3px double #111827;
+    }
+    .nav-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .nav-inner table { width: 100%; }
+    .nav-logo {
+      font-family: "Courier New", Courier, monospace;
+      font-size: 17px;
+      font-weight: bold;
+      color: #111827;
+      letter-spacing: -0.3px;
+      padding: 16px 0;
+      display: inline-block;
+      text-decoration: none;
+    }
+    .nav-logo span { color: #dc2626; }
+    .nav-btn {
+      display: inline-block;
+      background: #e8eaed;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #888888;
+      border-bottom: 2px solid #888888;
+      color: #111827;
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 5px 16px;
+      text-decoration: none;
+      margin-left: 6px;
+      cursor: pointer;
+    }
+    .nav-btn:hover {
+      background: #d4d6d9;
+      color: #111827;
+      text-decoration: none;
+    }
+    .nav-btn.red {
+      background: #dc2626;
+      border-top-color: #ef4444;
+      border-left-color: #ef4444;
+      border-right-color: #991b1b;
+      border-bottom-color: #991b1b;
+      color: white;
+    }
+    .nav-btn.red:hover { background: #b91c1c; color: white; }
+
+    /* ============================================================
+       HERO
+    ============================================================ */
+    .hero-band {
+      background: #0a0c10;
+      border-bottom: 4px solid #dc2626;
+    }
+    .hero-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 36px 20px 32px;
+    }
+    .hero-layout { width: 100%; border-collapse: collapse; }
+    .hero-left { padding-right: 28px; vertical-align: middle; }
+    .hero-right { vertical-align: middle; width: 268px; }
+
+    .badge-row { margin-bottom: 16px; }
+    .badge {
+      display: inline-block;
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 3px 9px;
+      margin-right: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .badge.critical {
+      background: #450a0a;
+      color: #fca5a5;
+      border-color: #991b1b;
+    }
+
+    .hero-title {
+      font-family: "Times New Roman", Georgia, serif;
+      font-size: 44px;
+      font-weight: bold;
+      color: #f1f5f9;
+      margin: 0 0 14px;
+      line-height: 1.08;
+    }
+    .hero-title em { font-style: normal; color: #dc2626; }
+
+    .hero-desc {
+      font-size: 14px;
+      color: #94a3b8;
+      margin: 0 0 22px;
+      max-width: 520px;
+      line-height: 1.65;
+    }
+
+    .hero-btn {
+      display: inline-block;
+      background: #dc2626;
+      border-top: 2px solid #ef4444;
+      border-left: 2px solid #ef4444;
+      border-right: 2px solid #991b1b;
+      border-bottom: 2px solid #991b1b;
+      color: white;
+      font-family: "Times New Roman", serif;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 7px 20px;
+      text-decoration: none;
+      margin-right: 8px;
+    }
+    .hero-btn:hover { background: #b91c1c; color: white; text-decoration: none; }
+    .hero-btn.outline {
+      background: #1e293b;
+      border-top-color: #334155;
+      border-left-color: #334155;
+      border-right-color: #0f172a;
+      border-bottom-color: #0f172a;
+      color: #cbd5e1;
+    }
+    .hero-btn.outline:hover { background: #273549; color: #f1f5f9; text-decoration: none; }
+
+    /* stats panel */
+    .stats-panel {
+      background: #111827;
+      border-top: 2px solid #1e293b;
+      border-left: 2px solid #1e293b;
+      border-right: 2px solid #0a0c10;
+      border-bottom: 2px solid #0a0c10;
+      padding: 18px;
+      width: 268px;
+    }
+    .stats-cve {
+      text-align: center;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 14px;
+      margin-bottom: 14px;
+    }
+    .stats-cve-label {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+    }
+    .stats-cve-num {
+      font-family: "Courier New", monospace;
+      font-size: 22px;
+      font-weight: bold;
+      color: #f87171;
+      display: block;
+      margin: 6px 0 3px;
+    }
+    .stats-cve-score { font-size: 12px; color: #94a3b8; }
+    .stats-grid { width: 100%; border-collapse: collapse; }
+    .stats-grid td {
+      text-align: center;
+      background: #1e293b;
+      border: 2px solid #0a0c10;
+      padding: 9px 4px;
+      width: 50%;
+    }
+    .stat-val {
+      font-family: "Courier New", monospace;
+      font-size: 19px;
+      font-weight: bold;
+      color: #f1f5f9;
+      display: block;
+    }
+    .stat-lbl {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: #64748b;
+      letter-spacing: 0.6px;
+    }
+
+    /* ============================================================
+       PAGE BODY
+    ============================================================ */
+    .page-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 20px 40px;
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 3px ridge #c0c4cc;
+      margin: 32px 0;
+    }
+
+    .section-eyebrow {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2.5px;
+      color: #dc2626;
+      margin: 0 0 5px;
+    }
+    .section-heading {
+      font-size: 23px;
+      font-weight: bold;
+      color: #0a0c10;
+      margin: 0 0 18px;
+      padding-bottom: 7px;
+      border-bottom: 2px solid #111827;
+    }
+
+    /* ============================================================
+       ROLE CARDS
+    ============================================================ */
+    .cards-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      height: 1px; /* forces td height:100% to work */
+    }
+    .cards-table td {
+      width: 33.33%;
+      vertical-align: top;
+      padding: 5px;
+      height: 100%;
+    }
+    .role-card {
+      display: block;
+      background: #ffffff;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #888888;
+      border-bottom: 2px solid #888888;
+      padding: 16px 14px;
+      text-decoration: none;
+      color: inherit;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    .role-card:hover { background: #fef2f2; text-decoration: none; }
+    .role-num {
+      display: inline-block;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #1e293b;
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 9px;
+      margin-bottom: 9px;
+    }
+    .role-card h3 {
+      font-size: 15px;
+      font-weight: bold;
+      color: #0a0c10;
+      margin: 0 0 8px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 6px;
+    }
+    .role-card p {
+      font-size: 13px;
+      color: #374151;
+      margin: 0 0 12px;
+      line-height: 1.55;
+    }
+    .role-url {
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      font-weight: bold;
+      background: #fff0f0;
+      border: 2px solid #dc2626;
+      color: #dc2626;
+      display: block;
+      padding: 7px 10px;
+      text-decoration: none;
+      letter-spacing: 0.2px;
+    }
+    .role-url:hover { background: #dc2626; color: #ffffff; text-decoration: none; }
+
+    /* ============================================================
+       TIMELINE
+    ============================================================ */
+    .timeline-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      height: 1px;
+    }
+    .timeline-table td {
+      width: 20%;
+      vertical-align: top;
+      padding: 5px;
+      height: 100%;
+    }
+    .step-box {
+      background: #ffffff;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+      border-right: 2px solid #888888;
+      border-bottom: 2px solid #888888;
+      padding: 13px 12px;
+      height: 100%;
+      box-sizing: border-box;
+    }
+    .step-box:hover { background: #fef2f2; }
+    .step-num-wrap { margin-bottom: 8px; }
+    .step-num {
+      display: inline-block;
+      background: #dc2626;
+      color: white;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: bold;
+      width: 26px;
+      height: 26px;
+      text-align: center;
+      line-height: 26px;
+      vertical-align: middle;
+    }
+    .step-tag {
+      font-family: "Courier New", monospace;
+      font-size: 9px;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      vertical-align: middle;
+      margin-left: 5px;
+    }
+    .step-title {
+      font-size: 13px;
+      font-weight: bold;
+      color: #0a0c10;
+      margin: 0 0 6px;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 5px;
+    }
+    .step-desc {
+      font-size: 12px;
+      color: #374151;
+      line-height: 1.5;
+    }
+    .step-desc code {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      padding: 1px 4px;
+      border: 1px solid #d1d5db;
+    }
+
+    /* ============================================================
+       WALKTHROUGH TABLE
+    ============================================================ */
+    .walk-outer {
+      border-top: 2px solid #0a0c10;
+      border-left: 2px solid #0a0c10;
+      border-right: 2px solid #555;
+      border-bottom: 2px solid #555;
+      margin: 16px 0 0;
+      overflow-x: auto;
+    }
+    .walk-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: white;
+    }
+    .walk-table th {
+      background: #1e293b;
+      color: #f8fafc;
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 12px 14px;
+      border-right: 1px solid #334155;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .walk-table th:last-child { border-right: none; }
+    .walk-table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid #dde1e7;
+      border-right: 1px solid #dde1e7;
+      vertical-align: top;
+      color: #0f172a;
+      line-height: 1.55;
+    }
+    .walk-table td:last-child { border-right: none; }
+    .walk-table tbody tr:nth-child(even) td { background: #f5f7fa; }
+    .walk-table tbody tr:hover td { background: #fff3f3; }
+    .walk-table tbody tr:last-child td { border-bottom: none; }
+    .walk-table td:first-child {
+      text-align: center;
+      vertical-align: middle;
+      width: 46px;
+    }
+    .walk-num {
+      display: inline-block;
+      background: #dc2626;
+      color: white;
+      width: 26px;
+      height: 26px;
+      line-height: 26px;
+      text-align: center;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .walk-title {
+      font-weight: bold;
+      color: #0a0c10;
+      white-space: nowrap;
+    }
+    .tag-victim {
+      display: inline-block;
+      background: #eef2ff;
+      color: #1e40af;
+      border: 1px solid #c7d2fe;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 8px;
+      font-family: "Courier New", monospace;
+      white-space: nowrap;
+    }
+    .tag-attacker {
+      display: inline-block;
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fca5a5;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 8px;
+      font-family: "Courier New", monospace;
+      white-space: nowrap;
+    }
+    .walk-table code {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      padding: 1px 5px;
+      border: 1px solid #d1d5db;
+      color: #dc2626;
+    }
+    .walk-table a { color: #dc2626; font-weight: bold; }
+    .walk-table strong { color: #0a0c10; }
+
+    .callout-box {
+      background: #fffbeb;
+      border-left: 5px solid #dc2626;
+      border-top: 1px solid #fde68a;
+      border-right: 1px solid #fde68a;
+      border-bottom: 1px solid #fde68a;
+      padding: 14px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #374151;
+      line-height: 1.65;
+    }
+    .callout-box strong { color: #0a0c10; }
+    .callout-box code {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      border: 1px solid #d1d5db;
+      padding: 1px 4px;
+      color: #dc2626;
+    }
+
+    /* ============================================================
+       CODE SPLIT
+    ============================================================ */
+    .code-split-table {
+      width: 100%;
+      border-collapse: collapse;
+      border-top: 2px solid #0a0c10;
+      border-left: 2px solid #0a0c10;
+      border-right: 2px solid #555;
+      border-bottom: 2px solid #555;
+      margin-top: 16px;
+    }
+    .code-pane {
+      background: #0f1117;
+      color: #d1d5db;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      vertical-align: top;
+      width: 54%;
+      border-right: 2px solid #334155;
+      overflow-x: hidden;
+    }
+    .code-titlebar {
+      background: #0a0c10;
+      padding: 9px 12px;
+      border-bottom: 1px solid #1e293b;
+      font-size: 11px;
+      color: #9ca3af;
+      font-family: "Courier New", monospace;
+      white-space: nowrap;
+    }
+    .code-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      background: #ff5f56;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+    .code-dot.yellow { background: #ffbd2e; }
+    .code-dot.green  { background: #27c93f; }
+    .vuln-badge {
+      float: right;
+      background: #7f1d1d;
+      color: #fca5a5;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 2px 7px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-family: "Courier New", monospace;
+    }
+    .code-body { padding: 12px 0; }
+    .cl {
+      display: table;
+      width: 100%;
+      padding: 0 10px;
+      font-size: 12px;
+      line-height: 1.75;
+    }
+    .ln {
+      display: table-cell;
+      width: 32px;
+      text-align: right;
+      color: #4b5563;
+      padding-right: 14px;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .lc { display: table-cell; color: #d1d5db; white-space: pre; }
+    .hl-bad  { background: rgba(220,38,38,.22); border-left: 3px solid #dc2626; }
+    .hl-bad .ln  { color: #f87171; }
+    .hl-bad .lc  { color: #fca5a5; }
+    .hl-good { background: rgba(34,197,94,.09); }
+    .hl-good .ln { color: #4ade80; }
+    .hl-good .lc { color: #86efac; }
+    .fn { color: #79c0ff; }
+    .kw { color: #ff7b72; }
+    .cm { color: #6b7280; font-style: italic; }
+
+    .explain-pane {
+      background: #ffffff;
+      vertical-align: top;
+      padding: 18px 16px;
+    }
+    .explain-item {
+      background: #f9fafb;
+      border-top: 1px solid #e5e7eb;
+      border-left: 1px solid #e5e7eb;
+      border-right: 2px solid #c4c9d4;
+      border-bottom: 2px solid #c4c9d4;
+      padding: 12px 13px;
+      margin-bottom: 12px;
+    }
+    .explain-item:last-child { margin-bottom: 0; }
+    .exp-num {
+      display: inline-block;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      color: #374151;
+      font-family: "Courier New", monospace;
+      font-size: 12px;
+      font-weight: bold;
+      width: 22px;
+      height: 22px;
+      text-align: center;
+      line-height: 22px;
+      margin-bottom: 7px;
+    }
+    .exp-num.bad  { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+    .exp-num.good { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .explain-item strong {
+      display: block;
+      font-size: 13px;
+      color: #0a0c10;
+      margin-bottom: 5px;
+    }
+    .explain-item p { font-size: 12px; color: #374151; margin: 0; line-height: 1.55; }
+    .explain-item code {
+      font-family: "Courier New", monospace;
+      font-size: 11px;
+      background: #f1f5f9;
+      border: 1px solid #d1d5db;
+      padding: 1px 4px;
+      color: #dc2626;
+    }
+
+    /* ============================================================
+       REFERENCES
+    ============================================================ */
+    .refs-outer {
+      background: #ffffff;
+      border-top: 1px solid #e5e7eb;
+      border-left: 1px solid #e5e7eb;
+      border-right: 2px solid #c4c9d4;
+      border-bottom: 2px solid #c4c9d4;
+      padding: 4px 16px 8px;
+      margin-top: 4px;
+    }
+    .refs-table { width: 100%; border-collapse: collapse; }
+    .refs-table td { vertical-align: top; width: 50%; padding: 0 16px 0 0; }
+    .refs-table td:last-child { padding-right: 0; padding-left: 16px; border-left: 1px solid #e5e7eb; }
+    .refs-list { list-style: decimal; padding-left: 18px; margin: 12px 0; }
+    .refs-list li {
+      font-size: 13px;
+      color: #374151;
+      padding: 6px 0 6px 2px;
+      border-bottom: 1px dotted #d1d5db;
+      line-height: 1.5;
+    }
+    .refs-list li:last-child { border-bottom: none; }
+    .refs-list a { color: #dc2626; font-weight: bold; }
+
+    /* ============================================================
+       FOOTER
+    ============================================================ */
+    .site-footer {
+      background: #0a0c10;
+      border-top: 4px double #dc2626;
+      padding: 36px 0;
+      margin-top: 0;
+    }
+    .footer-inner {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .footer-table { width: 100%; border-collapse: collapse; }
+    .footer-table td { vertical-align: middle; }
+    .footer-course {
+      font-size: 22px;
+      font-weight: bold;
+      color: #f1f5f9;
+      margin-bottom: 7px;
+    }
+    .footer-credits { font-size: 16px; color: #94a3b8; }
+    .footer-team-label {
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #64748b;
+      margin-bottom: 12px;
+      text-align: right;
+    }
+    .team-name {
+      display: block;
+      background: #1e293b;
+      border-top: 1px solid #334155;
+      border-left: 1px solid #334155;
+      border-right: 1px solid #0a0c10;
+      border-bottom: 1px solid #0a0c10;
+      color: #e2e8f0;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 7px 20px;
+      text-align: center;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     NAV
+============================================================ -->
+<div class="nav-wrap">
+  <div class="nav-inner">
+    <table cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td><a href="#" class="nav-logo">Heart<span>bleed</span> &middot; CVE-2014-0160</a></td>
+        <td align="right" style="padding: 14px 0; white-space: nowrap;">
+          <a href="https://localhost:4001" target="_blank" class="nav-btn">SecureBank</a>
+          <a href="http://localhost:4002" target="_blank" class="nav-btn red">Attack Console</a>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<div class="hero-band">
+  <div class="hero-inner">
+    <table class="hero-layout" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td class="hero-left">
+          <div class="badge-row">
+            <span class="badge critical">CVE-2014-0160 &middot; HIGH</span>
+            <span class="badge">OpenSSL 1.0.1f</span>
+            <span class="badge">TLS heartbeat</span>
+          </div>
+          <h1 class="hero-title">The <em>Heartbleed</em> Bug</h1>
+          <p class="hero-desc">A missing bounds check in OpenSSL 1.0.1f lets any attacker silently read 64&nbsp;KB of server memory per request &mdash; leaking passwords, private keys, and session tokens without leaving a trace.</p>
+          <div>
+            <a href="https://localhost:4001" target="_blank" class="hero-btn">Open SecureBank</a>
+            <a href="http://localhost:4002" target="_blank" class="hero-btn outline">Launch Attack Console</a>
+          </div>
+        </td>
+        <td class="hero-right">
+          <div class="stats-panel">
+            <div class="stats-cve">
+              <div class="stats-cve-label">Vulnerability</div>
+              <span class="stats-cve-num">CVE-2014-0160</span>
+              <div class="stats-cve-score">CVSS&nbsp;7.5 &middot; High severity</div>
+            </div>
+            <table class="stats-grid" cellspacing="3" cellpadding="0" border="0">
+              <tr>
+                <td><span class="stat-val">64 KB</span><span class="stat-lbl">Leaked / probe</span></td>
+                <td><span class="stat-val">1.0.1f</span><span class="stat-lbl">Last vulnerable</span></td>
+              </tr>
+              <tr>
+                <td><span class="stat-val">~17%</span><span class="stat-lbl">Servers (2014)</span></td>
+                <td><span class="stat-val">0</span><span class="stat-lbl">Log entries left</span></td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================================================
+     BODY
+============================================================ -->
+<div class="page-inner">
+
+  <hr class="divider">
+
+  <!-- ROLES -->
+  <p class="section-eyebrow">Demo Architecture</p>
+  <h2 class="section-heading">Three Roles in This Demo</h2>
+  <table class="cards-table" cellspacing="0" cellpadding="5" border="0">
+    <tr height="100%">
+      <td valign="top" height="100%">
+        <a class="role-card" href="https://localhost:4001" target="_blank">
+          <table width="100%" height="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr><td valign="top">
+              <span class="role-num">01</span>
+              <h3>Vulnerable Server</h3>
+              <p>SecureBank &mdash; a banking portal running HTTPS with <strong>OpenSSL 1.0.1f</strong>, compiled from source, unpatched.</p>
+            </td></tr>
+            <tr><td valign="bottom"><span class="role-url">https://localhost:4001</span></td></tr>
+          </table>
+        </a>
+      </td>
+      <td valign="top" height="100%">
+        <a class="role-card" href="https://localhost:4001" target="_blank">
+          <table width="100%" height="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr><td valign="top">
+              <span class="role-num">02</span>
+              <h3>Victim</h3>
+              <p>Log in as <strong>alice</strong>&nbsp;/ password123 or <strong>bob</strong>&nbsp;/ securepass. Session cookie stored in OpenSSL heap memory on every request.</p>
+            </td></tr>
+            <tr><td valign="bottom"><span class="role-url">https://localhost:4001</span></td></tr>
+          </table>
+        </a>
+      </td>
+      <td valign="top" height="100%">
+        <a class="role-card" href="http://localhost:4002" target="_blank">
+          <table width="100%" height="100%" cellspacing="0" cellpadding="0" border="0">
+            <tr><td valign="top">
+              <span class="role-num">03</span>
+              <h3>Attacker</h3>
+              <p>Sends malformed heartbeat (payload&nbsp;=&nbsp;0x4000), reads leaked heap memory, extracts the victim&apos;s session cookie.</p>
+            </td></tr>
+            <tr><td valign="bottom"><span class="role-url">http://localhost:4002</span></td></tr>
+          </table>
+        </a>
+      </td>
+    </tr>
+  </table>
+
+  <hr class="divider">
+
+  <!-- TIMELINE -->
+  <p class="section-eyebrow">Attack Flow</p>
+  <h2 class="section-heading">From Login to Session Takeover</h2>
+  <table class="timeline-table" cellspacing="0" cellpadding="5" border="0">
+    <tr height="100%">
+      <td valign="top" height="100%">
+        <div class="step-box">
+          <div class="step-num-wrap"><span class="step-num">1</span><span class="step-tag">Step 01</span></div>
+          <div class="step-title">Victim logs in</div>
+          <div class="step-desc">SecureBank sets a <code>session=</code> cookie. The HTTPS request passes through OpenSSL&apos;s heap buffers.</div>
+        </div>
+      </td>
+      <td valign="top" height="100%">
+        <div class="step-box">
+          <div class="step-num-wrap"><span class="step-num">2</span><span class="step-tag">Step 02</span></div>
+          <div class="step-title">Attacker connects</div>
+          <div class="step-desc">No credentials needed &mdash; the heartbeat extension is available to any peer before authentication.</div>
+        </div>
+      </td>
+      <td valign="top" height="100%">
+        <div class="step-box">
+          <div class="step-num-wrap"><span class="step-num">3</span><span class="step-tag">Step 03</span></div>
+          <div class="step-title">Malformed heartbeat</div>
+          <div class="step-desc">Packet carries <strong>1 byte</strong> but claims <code>0x4000</code> (16,384). OpenSSL&apos;s <code>memcpy</code> uses the attacker-supplied length &mdash; no bounds check.</div>
+        </div>
+      </td>
+      <td valign="top" height="100%">
+        <div class="step-box">
+          <div class="step-num-wrap"><span class="step-num">4</span><span class="step-tag">Step 04</span></div>
+          <div class="step-title">16 KB of heap leaked</div>
+          <div class="step-desc">The response echoes 16,383 bytes of adjacent heap data &mdash; which may include the victim&apos;s session cookie.</div>
+        </div>
+      </td>
+      <td valign="top" height="100%">
+        <div class="step-box">
+          <div class="step-num-wrap"><span class="step-num">5</span><span class="step-tag">Step 05</span></div>
+          <div class="step-title">Session hijacked</div>
+          <div class="step-desc">Attacker pastes the stolen cookie into their browser. Full account access granted &mdash; no password required.</div>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <hr class="divider">
+
+  <!-- WALKTHROUGH -->
+  <p class="section-eyebrow">Guided Demo</p>
+  <h2 class="section-heading">Walkthrough &mdash; Step by Step</h2>
+  <div class="walk-outer">
+    <table class="walk-table" cellspacing="0" cellpadding="0" border="0">
+      <colgroup>
+        <col style="width:46px">
+        <col style="width:128px">
+        <col style="width:88px">
+        <col>
+        <col>
+      </colgroup>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Step</th>
+          <th>Who</th>
+          <th>Action</th>
+          <th>What Happens</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="walk-num">1</span></td>
+          <td class="walk-title">Open the bank</td>
+          <td><span class="tag-victim">Victim</span></td>
+          <td>Go to <a href="https://localhost:4001" target="_blank">https://localhost:4001</a>, accept the certificate warning, log in as <code>alice</code>&nbsp;/&nbsp;<code>password123</code>.</td>
+          <td>Server issues a <code>Set-Cookie:&nbsp;session=&hellip;</code> token. That token flows through OpenSSL&apos;s heap on every request.</td>
+        </tr>
+        <tr>
+          <td><span class="walk-num">2</span></td>
+          <td class="walk-title">Open the console</td>
+          <td><span class="tag-attacker">Attacker</span></td>
+          <td>In a new tab go to <a href="http://localhost:4002" target="_blank">http://localhost:4002</a>. Target (<code>server:443</code>) is pre-filled. Click <strong>Run Heartbleed Exploit</strong>.</td>
+          <td>The tool logs the victim in automatically to seed the heap, then fires up to 20 malformed heartbeat probes.</td>
+        </tr>
+        <tr>
+          <td><span class="walk-num">3</span></td>
+          <td class="walk-title">Read the dump</td>
+          <td><span class="tag-attacker">Attacker</span></td>
+          <td>Watch the hex dump appear below the result panel. Look for <code>Cookie:&nbsp;session=</code> in the ASCII column on the right.</td>
+          <td>Each probe leaks up to 16,384 bytes of raw heap. The token appears in plaintext &mdash; no decryption needed.</td>
+        </tr>
+        <tr>
+          <td><span class="walk-num">4</span></td>
+          <td class="walk-title">Copy the token</td>
+          <td><span class="tag-attacker">Attacker</span></td>
+          <td>When the green <strong>Token Found</strong> badge appears, copy the 32-character hex token shown below it.</td>
+          <td>The attacker now holds the victim&apos;s live session identifier &mdash; obtained without any password.</td>
+        </tr>
+        <tr>
+          <td><span class="walk-num">5</span></td>
+          <td class="walk-title">Hijack the session</td>
+          <td><span class="tag-attacker">Attacker</span></td>
+          <td>DevTools &rarr; <strong>Application &rarr; Cookies</strong> (Chrome) or <strong>Storage &rarr; Cookies</strong> (Firefox). Add cookie: <code>session</code>&nbsp;= stolen token, domain <code>localhost</code>. Navigate to <a href="https://localhost:4001/dashboard" target="_blank">https://localhost:4001/dashboard</a>.</td>
+          <td>The server accepts the token and grants full account access &mdash; no password ever entered.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout-box">
+    <strong>&#9888;&nbsp;Why this works</strong> &mdash; The TLS heartbeat extension (RFC&nbsp;6520) is negotiated <em>before</em> authentication. OpenSSL&nbsp;1.0.1f trusts the attacker-supplied payload length with no bounds check, so <code>memcpy</code> copies adjacent heap memory into the response. The victim&apos;s <code>Cookie:</code> header passes through those heap buffers on every HTTPS request &mdash; making it recoverable without any decryption.
+  </div>
+
+  <hr class="divider">
+
+  <!-- ROOT CAUSE -->
+  <p class="section-eyebrow">Root Cause Analysis</p>
+  <h2 class="section-heading">Vulnerable Code Path &mdash; OpenSSL t1_lib.c</h2>
+  <table class="code-split-table" cellspacing="0" cellpadding="0" border="0">
+    <tr>
+      <td class="code-pane">
+        <div class="code-titlebar">
+          <span class="code-dot"></span><span class="code-dot yellow"></span><span class="code-dot green"></span>
+          &nbsp;&nbsp;openssl / ssl / t1_lib.c
+          <span class="vuln-badge">VULNERABLE</span>
+        </div>
+        <div class="code-body">
+          <div class="cl"><span class="ln">1</span><span class="lc"><span class="fn">n2s</span>(p, payload);</span></div>
+          <div class="cl"><span class="ln">2</span><span class="lc">pl = p;</span></div>
+          <div class="cl"><span class="ln">&nbsp;</span><span class="lc">&nbsp;</span></div>
+          <div class="cl hl-bad"><span class="ln">3</span><span class="lc">bp = <span class="fn">OPENSSL_malloc</span>(1 + 2 + payload + padding);</span></div>
+          <div class="cl hl-bad"><span class="ln">4</span><span class="lc"><span class="fn">memcpy</span>(bp, pl, payload); <span class="cm">/* &#10060; attacker-controlled length */</span></span></div>
+          <div class="cl"><span class="ln">&nbsp;</span><span class="lc">&nbsp;</span></div>
+          <div class="cl hl-good"><span class="ln">+</span><span class="lc"><span class="cm">/* Fix added in OpenSSL 1.0.1g */</span></span></div>
+          <div class="cl hl-good"><span class="ln">+</span><span class="lc"><span class="kw">if</span> (1 + 2 + payload + 16 &gt; s-&gt;s3-&gt;rrec.length) <span class="kw">return</span> 0;</span></div>
+        </div>
+      </td>
+      <td class="explain-pane" valign="top">
+        <div class="explain-item">
+          <span class="exp-num">&#9312;</span>
+          <strong>Attacker controls <code>payload</code></strong>
+          <p>The heartbeat message includes a length field. OpenSSL reads it directly &mdash; no validation. Attacker sets it to <code>0x4000</code>&nbsp;(16,384).</p>
+        </div>
+        <div class="explain-item">
+          <span class="exp-num bad">&#9313;</span>
+          <strong>Unchecked <code>memcpy</code></strong>
+          <p>Memory is allocated and <code>memcpy</code> copies <em>payload</em> bytes from the heap &mdash; not the actual received data length. Up to 64&nbsp;KB of heap is sent back to the attacker.</p>
+        </div>
+        <div class="explain-item">
+          <span class="exp-num good">&#9314;</span>
+          <strong>The one-line fix</strong>
+          <p>OpenSSL 1.0.1g added a single bounds check: if the claimed length exceeds the actual TLS record length, abort. That&apos;s all it took.</p>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <hr class="divider">
+
+  <!-- REFERENCES -->
+  <p class="section-eyebrow">Further Reading</p>
+  <h2 class="section-heading">References &amp; Security Resources</h2>
+  <div class="refs-outer">
+    <table class="refs-table" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td valign="top">
+          <ol class="refs-list" start="1">
+            <li>&ldquo;Heartbleed Bug,&rdquo; <em>heartbleed.com</em>, 2014. <a href="https://heartbleed.com" target="_blank">heartbleed.com</a></li>
+            <li>CISA, &ldquo;OpenSSL Heartbleed Vulnerability (CVE-2014-0160),&rdquo; Apr.&nbsp;2014. <a href="https://www.cisa.gov/news-events/alerts/2014/04/08/openssl-heartbleed-vulnerability-cve-2014-0160" target="_blank">cisa.gov</a></li>
+            <li>CERT/CC, &ldquo;Vulnerability Note VU#720951.&rdquo; <a href="https://www.kb.cert.org/vuls/id/720951" target="_blank">kb.cert.org</a></li>
+            <li>Canada Revenue Agency, &ldquo;Internal Audit &mdash; Cyber Security,&rdquo; 2016. <a href="https://www.canada.ca/en/revenue-agency/programs/about-canada-revenue-agency-cra/internal-audit-program-evaluation/internal-audit-program-evaluation-reports-2016/internal-audit-cyber-security.html" target="_blank">canada.ca</a></li>
+          </ol>
+        </td>
+        <td valign="top">
+          <ol class="refs-list" start="5">
+            <li>Cloudflare, &ldquo;Staying Ahead of OpenSSL Vulnerabilities,&rdquo; Apr.&nbsp;2014. <a href="https://blog.cloudflare.com/staying-ahead-of-openssl-vulnerabilities/" target="_blank">cloudflare.com</a></li>
+            <li>Shodan, &ldquo;Facet Analysis: CVE-2014-0160.&rdquo; <a href="https://www.shodan.io/search/facet?query=vuln%3ACVE-2014-0160&facet=product" target="_blank">shodan.io</a></li>
+            <li>OWASP, &ldquo;Cyber Defense Framework,&rdquo; 2023. <a href="https://owasp.org/www-project-cyber-defense-framework/" target="_blank">owasp.org</a></li>
+            <li>Snort, &ldquo;Network Intrusion Detection &amp; Prevention System.&rdquo; <a href="https://www.snort.org/" target="_blank">snort.org</a></li>
+          </ol>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+</div><!-- /page-inner -->
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+<div class="site-footer">
+  <div class="footer-inner">
+    <table class="footer-table" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td valign="middle">
+          <div class="footer-course">COMP3781 Cybersecurity &middot; Flinders University</div>
+          <div class="footer-credits">Educational Heartbleed demo &mdash; for research &amp; secure development awareness</div>
+        </td>
+        <td align="right" valign="middle">
+          <div class="footer-team-label">Project Team</div>
+          <table cellspacing="4" cellpadding="0" border="0" align="right">
+            <tr>
+              <td><span class="team-name">Colin Chen</span></td>
+              <td><span class="team-name">Bailey Boyd</span></td>
+            </tr>
+            <tr>
+              <td><span class="team-name">Samuel Ngiri</span></td>
+              <td><span class="team-name">Lachlan Gill</span></td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+</body>
+</html>
